@@ -44,24 +44,7 @@ def load_files(cont):
     # cont.title('Folder Picker')
     col1, col2, = cont.columns(2)
     col2.image("media/aaron.jpg")
-    audio_file = col1.file_uploader("Choose an audio file", type=['mp3', 'wav'])
-    if audio_file is not None:
-        st.session_state.audio_file = audio_file
-        st.session_state.audio_bytes = audio_file.getvalue()
-        st.session_state.audio_format = audio_file.type.split('/')[-1]
-
-    uploaded_files = col1.file_uploader("Choose the AI outputs", accept_multiple_files=True)
     for u_file in uploaded_files:
-        # if u_file.type == 'audio/mpeg':
-        #     with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-        #         tmp_file.write(u_file.getvalue())
-        #         tmp_file_path = tmp_file.name
-        #         # Read the audio file
-        #         st.session_state.audio = AudioSegment.from_mp3(tmp_file_path)
-        #         st.session_state.audio_file = u_file.name
-        #         st.session_state.audio_bytes = u_file.getvalue()
-        #         st.session_state.audio_format = u_file.type.split('/')[-1]
-        if  'text' in u_file.type:
             text_content = u_file.getvalue().decode('utf-8')
             if "additional" in u_file.name.lower():
                 st.session_state["additional"] = text_content
