@@ -1,16 +1,7 @@
-import base64
-import os
-import io
 import collections
-import numpy as np
 import streamlit as st
 import tempfile
 from pydub import AudioSegment
-from PIL import Image
-import cairosvg
-from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPDF
-from pdf2image import convert_from_bytes
 
 from utils.aa_utils import find_txt, get_audio_file_content, get_binary_file_downloader_html, range2start_end, set_svg_text_direction
 
