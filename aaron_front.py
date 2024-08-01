@@ -1,7 +1,10 @@
 import collections
+from st_click_detector import click_detector
+
 import streamlit as st
+import pandas as pd
 import tempfile
-from pydub import AudioSegment
+
 
 from utils.aa_utils import find_txt, get_audio_file_content, get_binary_file_downloader_html, range2start_end, set_svg_text_direction
 
@@ -73,14 +76,6 @@ def load_files(cont):
 
 
 
-#    col1.write('Please select a folder:')
- #   clicked = col2.button('Folder Picker')
-  #  if clicked:
-   #     dir = filedialog.askdirectory(master=root, initialdir="./")
-    #    st.session_state.dir = dir
-    #  audio = find_audio(dir)
-    # st.session_state.audio=audio
-    #return col1
 
 
 # Function to render the HTML audio player with start and end times
@@ -125,14 +120,6 @@ def jump_player():
 
 # Function to display audio player
 def display_audio_player(cont):
-    # File uploader
-    # uploaded_files = cont.file_uploader("Choose an audio file (mp3), and AI outputs", accept_multiple_files=True)
-    # if uploaded_files is not None and len(uploaded_files)>0:
-    #     st.session_state.audio_file = uploaded_files
-    #     st.session_state.audio_bytes = uploaded_files.getvalue()
-    #     st.session_state.audio_format = uploaded_files.type.split('/')[-1]
-    # audio = st.session_state.audio
-
     if 'audio_file' in st.session_state:
         cont.markdown("**Player**")
         # Display audio player
@@ -207,23 +194,169 @@ def show_quiz(cont):
                 cont.markdown(f"**Question {valid + 1}**. {pref}: You selected: {selected_answers}")
         cont.markdown(f"<h2 style='font-size:26px;'>Total score: {score}/{valid}</h2>", unsafe_allow_html=True)
 
+    # Function to handle link click
+def link_click(item):
+    if item:
+        start_secs, end_secs = range2start_end(item.strip())
+   #     st.write(f"You clicked on {item}. player will start at {start_secs}!")
+        st.session_state.start_time = start_secs
+
+
+
+
 def show_concepts(cont, tags):
+    with cont:
+        tags_column = []
+        times_column = []
+        for tag, times in tags.items():
+            l = len(times)
+            tags_column.append(tag)
+            times_list = []
+            for i, tim in enumerate(times):
+                start_secs, end_secs = range2start_end(tim.strip())
+                key = f'{tag}_{tim}'
+                st.session_state.playback_times[key] = start_secs
+                tim_dict={}
+                tim_dict['name']=tim
+                tim_dict['url']=tim
+                times_list.append(tim_dict)
+            times_column.append(times_list)
+
+            data = {
+                'tags': tags_column,
+                'times': times_column,
+            }
+        # data = {
+        #     'Text Column': ['Item 1', 'Item 2', 'Item 3'],
+        #     'Link Column': [
+        #         [{'name': 'apple', 'url': 'apple'}, {'name': 'banana', 'url': 'banana'},
+        #          {'name': 'cherry', 'url': 'cherry'}],
+        #         [{'name': 'dog', 'url': 'dog'}, {'name': 'cat', 'url': 'cat'}, {'name': 'bird', 'url': 'bird'}],
+        #         [{'name': 'red', 'url': 'red'}, {'name': 'green', 'url': 'green'}, {'name': 'blue', 'url': 'blue'}]
+        #     ]
+        # }
+
+        df = pd.DataFrame(data)
+        # Generate HTML content for the links
+        html_content = """
+           <style>
+               table {
+                   width: 100%;
+                   border-collapse: collapse;
+               }
+               th, td {
+                   border: 1px solid #ddd;
+                   padding: 8px;
+               }
+               th {
+                   padding-top: 12px;
+                   padding-bottom: 12px;
+                   text-align: left;
+                   background-color: #f2f2f2;
+               }
+               a {
+                   text-decoration: none;
+                   color: blue;
+               }
+           </style>
+           <table>
+               <tr>
+                   <th>Concepts</th>
+                   <th>Times</th>
+               </tr>
+           """
+
+        for _, row in df.iterrows():
+            html_content += f"<tr><td>{row['tags']}</td><td>"
+            for link_dict in row['times']:
+                html_content += f'<a href="#" id="{link_dict["name"]}">{link_dict["name"]}</a> '
+            html_content += "</td></tr>"
+        html_content += "</table>"
+        # Use click_detector to capture clicks
+        clicked = click_detector(html_content)
+
+    # Display the clicked item if any
+    if clicked and clicked!=st.session_state['prev_click']:
+        link_click(clicked)
+        st.session_state['prev_click']=clicked
+        st.rerun()
+
+
+def show_concepts1(cont, tags):
     if cont is not None:
+        tags_column=[]
+        times_column=[]
         for tag, times in tags.items():
             l = len(times)
             columns = cont.columns(l + 1)
             with columns[0]:
-                cont.markdown(f"**{tag}**: ")
+                #cont.markdown(f"**{tag}**: ")
+                tags_column.append(tag)
+            times_list=[]
             for i, tim in enumerate(times):
                 with columns[i + 1]:
                     start_secs, end_secs = range2start_end(tim.strip())
                     key = f'{tag}_{tim}'
                     st.session_state.playback_times[key] = start_secs
                     #    if key not in st.session_state:
-                    if st.button(tim, key=key):
-                        st.session_state["start_time"] = start_secs
-                        st.rerun()
-            cont.divider()
+
+                    times_list.append(tim)
+                    # if st.button(tim, key=key):
+                    #     st.session_state["start_time"] = start_secs
+                    #     st.rerun()
+            times_column.append(times_list)
+
+        data = {
+            'tags': tags_column,
+            'times': times_column,
+        }
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+
+        cont.data_editor(
+            df,
+            column_config={
+                "tags": st.column_config.TextColumn(
+                    "Concepts",
+                    help="This is the text column",
+                    width="small"
+                ),
+                "times": st.column_config.ListColumn(
+                    "Times",
+                    help="Click on an item to select it",
+                    width="large"
+                )
+            },
+            disabled=True,  # This makes the editor read-only
+            hide_index=True,
+            num_rows="fixed",
+            use_container_width=True
+        )
+
+        # Handle button clicks
+        for index, row in df.iterrows():
+            tag = row['tags']
+            for tim in row['times']:
+                key = f'{tag}_{tim}'
+                if st.button(tim, key=key):
+                    st.session_state["start_time"] =  st.session_state.playback_times[key]
+                    st.rerun()
+
+        # for tag, times in tags.items():
+        #     l = len(times)
+        #     columns = cont.columns(l + 1)
+        #     with columns[0]:
+        #         cont.markdown(f"**{tag}**: ")
+        #     for i, tim in enumerate(times):
+        #         with columns[i + 1]:
+        #             start_secs, end_secs = range2start_end(tim.strip())
+        #             key = f'{tag}_{tim}'
+        #             st.session_state.playback_times[key] = start_secs
+        #             #    if key not in st.session_state:
+        #             if st.button(tim, key=key):
+        #                 st.session_state["start_time"] = start_secs
+        #                 st.rerun()
+        #     cont.divider()
 
 
 def get_body(str):
@@ -242,19 +375,7 @@ def get_body(str):
     return (result_string)
 
 
-# def find_body_of(task):
-#     body = None
-#     if 'dir' in st.session_state or st.session_state['dir'] != '':
-#         file_name = find_txt(st.session_state["dir"], task)
-#         if file_name is not None:
-#             f = io.open(file_name, mode="r", encoding="utf-8")
-#             content = f.read()
-#             body = get_body(content)
-#             f.close()
-#         return body
-
-
-def load_AI(cont):
+def load_AI(cont,sb):
    # if 'dir' in st.session_state and st.session_state['dir'] != None:
         # short = find_short_summary()
     #    short = find_body_of("Short_Summary")\
@@ -274,9 +395,10 @@ def load_AI(cont):
 
     concepts = st.session_state['concepts']
     if concepts is not None:
-        st.session_state["concepts_expd"] = cont.expander("Key Concepts", expanded=False, icon="🏹")
+        st.session_state["concepts_expd"] = sb.expander("Key Concepts", expanded=True, icon="🏹")
         tags = extract_tags()
         if tags is not None:
+            pass
             show_concepts(st.session_state["concepts_expd"], tags)
 
     long = st.session_state["long_summary"]
@@ -292,7 +414,6 @@ def load_AI(cont):
         expd.subheader("Self Evaluation Quiz")
         show_quiz(expd)
 
-
     additional = st.session_state["additional"]
     if additional is not None:
         expd = cont.expander("Additional Reading", expanded=False, icon="📚")
@@ -303,6 +424,9 @@ def load_AI(cont):
 
 
 def init():
+    # Initialize session state for clicked item if not exists
+    if 'clicked_item' not in st.session_state:
+        st.session_state.clicked_item = None
     #if 'dir' not in st.session_state:
      #   st.session_state["dir"] = None
     if 'jump' not in st.session_state:
@@ -329,25 +453,27 @@ def init():
         st.session_state["concepts_expd"] = None
     if 'audio_cont' not in st.session_state:
         st.session_state["audio_cont"] = None
-
+    if 'playback_times' not in st.session_state:
+        st.session_state.playback_times={}
+    if 'prev_click' not in st.session_state:
+        st.session_state.prev_click=None
 
 # Streamlit app
 def main():
     if 'ai' not in st.session_state or st.session_state["ai"] == False:
         init()
-
-    sb, m_container = st.columns([1, 100])
-    m_container.title("Aaron The Owl")
-    m_container.subheader("Lecture Recap")
-    player_placeholder = m_container.empty()
+    st.title("Aaron The Owl")
+    st.subheader("Lecture Recap")
+    player_placeholder = st.empty()
     cont = player_placeholder.container()
     # if 'dir' not in st.session_state or st.session_state["dir"] == "":
+    m_container,sb = st.columns([500, 210])
     load_files(cont)
-
     # if  'dir' in st.session_state and st.session_state["dir"] != "":
     display_audio_player(cont)
     # if 'ai' not in st.session_state or st.session_state["ai"] == False:
-    load_AI(m_container)
+    load_AI(m_container,sb)
 
 if __name__ == "__main__":
+
     main()
