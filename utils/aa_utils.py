@@ -1,6 +1,18 @@
 import base64
 import os
 from bs4 import BeautifulSoup
+import configparser
+
+class aaFrontConfig:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+
+    def parse_file(self, filename="./utils/config.cfg"):
+        self.config.read_file(open(filename))
+        self.tts_file=self.config['DEFAULT']['tts_file']
+    def parse_io(self,io_obj):
+        self.config.read_file(io_obj)
+        self.tts_file = self.config['DEFAULT']['tts_file']
 
 def find_video (dir):
     for i in os.listdir(dir):

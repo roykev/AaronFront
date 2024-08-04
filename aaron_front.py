@@ -1,12 +1,14 @@
 import collections
-from st_click_detector import click_detector
+import io
 
+from st_click_detector import click_detector
+import os
 import streamlit as st
 import pandas as pd
 import tempfile
 
 
-from utils.aa_utils import find_txt, get_audio_file_content, get_binary_file_downloader_html, range2start_end, set_svg_text_direction
+from utils.aa_utils import find_txt, get_audio_file_content, get_binary_file_downloader_html, range2start_end, set_svg_text_direction, aaFrontConfig
 
 sections = ["Short_Summary", "MindMap", "Quiz", "Long_Summary", "Concepts", "Additional"]
 
@@ -198,7 +200,6 @@ def show_quiz(cont):
 def link_click(item):
     if item:
         start_secs, end_secs = range2start_end(item.strip())
-   #     st.write(f"You clicked on {item}. player will start at {start_secs}!")
         st.session_state.start_time = start_secs
 
 
@@ -226,15 +227,6 @@ def show_concepts(cont, tags):
                 'tags': tags_column,
                 'times': times_column,
             }
-        # data = {
-        #     'Text Column': ['Item 1', 'Item 2', 'Item 3'],
-        #     'Link Column': [
-        #         [{'name': 'apple', 'url': 'apple'}, {'name': 'banana', 'url': 'banana'},
-        #          {'name': 'cherry', 'url': 'cherry'}],
-        #         [{'name': 'dog', 'url': 'dog'}, {'name': 'cat', 'url': 'cat'}, {'name': 'bird', 'url': 'bird'}],
-        #         [{'name': 'red', 'url': 'red'}, {'name': 'green', 'url': 'green'}, {'name': 'blue', 'url': 'blue'}]
-        #     ]
-        # }
 
         df = pd.DataFrame(data)
         # Generate HTML content for the links
@@ -282,82 +274,6 @@ def show_concepts(cont, tags):
         st.rerun()
 
 
-def show_concepts1(cont, tags):
-    if cont is not None:
-        tags_column=[]
-        times_column=[]
-        for tag, times in tags.items():
-            l = len(times)
-            columns = cont.columns(l + 1)
-            with columns[0]:
-                #cont.markdown(f"**{tag}**: ")
-                tags_column.append(tag)
-            times_list=[]
-            for i, tim in enumerate(times):
-                with columns[i + 1]:
-                    start_secs, end_secs = range2start_end(tim.strip())
-                    key = f'{tag}_{tim}'
-                    st.session_state.playback_times[key] = start_secs
-                    #    if key not in st.session_state:
-
-                    times_list.append(tim)
-                    # if st.button(tim, key=key):
-                    #     st.session_state["start_time"] = start_secs
-                    #     st.rerun()
-            times_column.append(times_list)
-
-        data = {
-            'tags': tags_column,
-            'times': times_column,
-        }
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
-
-        cont.data_editor(
-            df,
-            column_config={
-                "tags": st.column_config.TextColumn(
-                    "Concepts",
-                    help="This is the text column",
-                    width="small"
-                ),
-                "times": st.column_config.ListColumn(
-                    "Times",
-                    help="Click on an item to select it",
-                    width="large"
-                )
-            },
-            disabled=True,  # This makes the editor read-only
-            hide_index=True,
-            num_rows="fixed",
-            use_container_width=True
-        )
-
-        # Handle button clicks
-        for index, row in df.iterrows():
-            tag = row['tags']
-            for tim in row['times']:
-                key = f'{tag}_{tim}'
-                if st.button(tim, key=key):
-                    st.session_state["start_time"] =  st.session_state.playback_times[key]
-                    st.rerun()
-
-        # for tag, times in tags.items():
-        #     l = len(times)
-        #     columns = cont.columns(l + 1)
-        #     with columns[0]:
-        #         cont.markdown(f"**{tag}**: ")
-        #     for i, tim in enumerate(times):
-        #         with columns[i + 1]:
-        #             start_secs, end_secs = range2start_end(tim.strip())
-        #             key = f'{tag}_{tim}'
-        #             st.session_state.playback_times[key] = start_secs
-        #             #    if key not in st.session_state:
-        #             if st.button(tim, key=key):
-        #                 st.session_state["start_time"] = start_secs
-        #                 st.rerun()
-        #     cont.divider()
-
 
 def get_body(str):
     # Find the index of the substring
@@ -375,6 +291,12 @@ def get_body(str):
     return (result_string)
 
 
+def locate_tts_file():
+    tts_file = st.session_state.config.tts_file
+    return tts_file
+    # ttsmp3 = os.path.join(st.session_state['dir'], "ttsmp3.mp3")
+    # if os.path.isfile(ttsmp3):
+    #    expd.markdown(get_binary_file_downloader_html('media/short.mp3', 'Audio'), unsafe_allow_html=True)
 def load_AI(cont,sb):
    # if 'dir' in st.session_state and st.session_state['dir'] != None:
         # short = find_short_summary()
@@ -384,9 +306,11 @@ def load_AI(cont,sb):
         expd = cont.expander("Short Summary", expanded=True, icon="💥")
         expd.subheader("Short Summary")
         expd.markdown(f'<div style="text-align: right;">{short}</div>', unsafe_allow_html=True)
-       #TODO ttsmp3 = os.path.join(st.session_state['dir'], "ttsmp3.mp3")
-    #TODO    if os.path.isfile(ttsmp3):
-         #TODO   expd.markdown(get_binary_file_downloader_html('media/short.mp3', 'Audio'), unsafe_allow_html=True)
+        if st.session_state.allow_tts_download:
+            tts_location = locate_tts_file()
+            if tts_location is not None and os.path.isfile(tts_location):
+                expd.markdown(get_binary_file_downloader_html(tts_location, 'Audio'), unsafe_allow_html=True)
+
     mindmap = st.session_state['mindmap']
     if mindmap is not None:
         expd = cont.expander("MindMap", expanded=False, icon="🦉")
@@ -396,9 +320,9 @@ def load_AI(cont,sb):
     concepts = st.session_state['concepts']
     if concepts is not None:
         st.session_state["concepts_expd"] = sb.expander("Key Concepts", expanded=True, icon="🏹")
+        st.session_state["concepts_expd"].subheader("Key Concepts")
         tags = extract_tags()
         if tags is not None:
-            pass
             show_concepts(st.session_state["concepts_expd"], tags)
 
     long = st.session_state["long_summary"]
@@ -424,6 +348,9 @@ def load_AI(cont,sb):
 
 
 def init():
+    st.session_state.config = aaFrontConfig()
+    st.session_state.config.parse_file()
+
     # Initialize session state for clicked item if not exists
     if 'clicked_item' not in st.session_state:
         st.session_state.clicked_item = None
@@ -455,6 +382,8 @@ def init():
         st.session_state["audio_cont"] = None
     if 'playback_times' not in st.session_state:
         st.session_state.playback_times={}
+    if 'allow_tts_download' not in st.session_state:
+        st.session_state.allow_tts_download = False
     if 'prev_click' not in st.session_state:
         st.session_state.prev_click=None
 
@@ -468,6 +397,18 @@ def main():
     cont = player_placeholder.container()
     # if 'dir' not in st.session_state or st.session_state["dir"] == "":
     m_container,sb = st.columns([500, 210])
+    with st.popover("Settings"):
+        config_file = st.file_uploader("Upload a config file", type=['cfg'])
+        st.session_state.allow_tts_download = st.checkbox("Summary as MP3")
+
+    if config_file is not None:
+        # Read the content of the uploaded file
+        file_content = config_file.read()
+        # Convert bytes content to a file-like object
+
+        file_like_object = io.StringIO(file_content.decode('utf-8'))
+        st.session_state.config.parse_io(file_like_object)
+
     load_files(cont)
     # if  'dir' in st.session_state and st.session_state["dir"] != "":
     display_audio_player(cont)
