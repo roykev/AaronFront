@@ -113,3 +113,4 @@ urllib3==2.2.1
 validators==0.28.3
 watchdog==4.0.1
 webencodings==0.5.1
+st_click_detector
