@@ -44,7 +44,6 @@ def load_files(cont):
    # root.withdraw()
     # Make folder picker dialog appear on top of other windows
     #root.wm_attributes('-topmost', 1)
-
     # Folder picker button
     # cont.title('Folder Picker')
     col1, col2, = cont.columns(2)
@@ -74,11 +73,10 @@ def load_files(cont):
             # Modify the SVG for RTL text direction
             svg_content_rtl = set_svg_text_direction(svg_content)
             st.session_state['mindmap']=svg_content_rtl
-
-
-
-
-
+        elif 'mp3' in u_file.type and st.session_state.allow_tts_download and u_file.name == st.session_state.config.tts_file:
+            st.session_state.tts_file = u_file
+            st.session_state.tts_bytes = u_file.getvalue()
+            st.session_state.tts_format = u_file.type.split('/')[-1]
 
 # Function to render the HTML audio player with start and end times
 def audio_player(file_path, start_time, end_time):
@@ -113,13 +111,10 @@ def audio_player(file_path, start_time, end_time):
     """
     return audio_html
 
-
 def jump_player():
     st.session_state.audio_player = st.session_state["audio_cont"].audio(st.session_state.audio, format="audio/wav",
                                                                          start_time=st.session_state.start_time,
                                                                          end_time=st.session_state.end_time)
-
-
 # Function to display audio player
 def display_audio_player(cont):
     if 'audio_file' in st.session_state:
@@ -204,7 +199,6 @@ def link_click(item):
 
 
 
-
 def show_concepts(cont, tags):
     with cont:
         tags_column = []
@@ -274,7 +268,6 @@ def show_concepts(cont, tags):
         st.rerun()
 
 
-
 def get_body(str):
     # Find the index of the substring
     substring_to_find = "Result:"
@@ -290,17 +283,16 @@ def get_body(str):
 
     return (result_string)
 
-
 def locate_tts_file():
     tts_file = st.session_state.config.tts_file
-    return tts_file
+    if os.path.isfile(tts_file):
+        return tts_file
+    if st.session_state.tts_file is not None:
+        return st.session_state.tts_file
     # ttsmp3 = os.path.join(st.session_state['dir'], "ttsmp3.mp3")
     # if os.path.isfile(ttsmp3):
     #    expd.markdown(get_binary_file_downloader_html('media/short.mp3', 'Audio'), unsafe_allow_html=True)
 def load_AI(cont,sb):
-   # if 'dir' in st.session_state and st.session_state['dir'] != None:
-        # short = find_short_summary()
-    #    short = find_body_of("Short_Summary")\
     short = st.session_state["short_summary"]
     if short is not None:
         expd = cont.expander("Short Summary", expanded=True, icon="💥")
@@ -308,7 +300,7 @@ def load_AI(cont,sb):
         expd.markdown(f'<div style="text-align: right;">{short}</div>', unsafe_allow_html=True)
         if st.session_state.allow_tts_download:
             tts_location = locate_tts_file()
-            if tts_location is not None and os.path.isfile(tts_location):
+            if tts_location:
                 expd.markdown(get_binary_file_downloader_html(tts_location, 'Audio'), unsafe_allow_html=True)
 
     mindmap = st.session_state['mindmap']
@@ -386,6 +378,13 @@ def init():
         st.session_state.allow_tts_download = False
     if 'prev_click' not in st.session_state:
         st.session_state.prev_click=None
+    if 'tts_file' not in st.session_state:
+        st.session_state.tts_file=None
+    if 'tts_bytes' not in st.session_state:
+        st.session_state.tts_bytes=None
+    if 'tts_format' not in st.session_state:
+        st.session_state.tts_format=None
+
 
 # Streamlit app
 def main():
@@ -400,12 +399,13 @@ def main():
     with st.popover("Settings"):
         config_file = st.file_uploader("Upload a config file", type=['cfg'])
         st.session_state.allow_tts_download = st.checkbox("Summary as MP3")
+      #  if st.session_state.allow_tts_download:
+       #     tts_mp3 = st.file_uploader("Upload a tts file", type=['mp3'])
 
     if config_file is not None:
         # Read the content of the uploaded file
         file_content = config_file.read()
         # Convert bytes content to a file-like object
-
         file_like_object = io.StringIO(file_content.decode('utf-8'))
         st.session_state.config.parse_io(file_like_object)
 
@@ -416,5 +416,4 @@ def main():
     load_AI(m_container,sb)
 
 if __name__ == "__main__":
-
     main()
