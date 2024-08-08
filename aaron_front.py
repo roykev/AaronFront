@@ -2,6 +2,7 @@ import collections
 import io
 
 from st_click_detector import click_detector
+import streamlit.components.v1 as components
 import os
 import streamlit as st
 import pandas as pd
@@ -55,24 +56,30 @@ def load_files(cont):
         st.session_state.audio_format = audio_file.type.split('/')[-1]
     uploaded_files = col1.file_uploader("Choose the AI outputs", accept_multiple_files=True)
     for u_file in uploaded_files:
-        if 'text' in u_file.type:
+        if 'svg' in u_file.type :
+            # Read the SVG file content
+            svg_content = u_file.read().decode("utf-8")
+            # Modify the SVG for RTL text direction
+            svg_content_rtl = set_svg_text_direction(svg_content)
+            st.session_state['mindmap'] = svg_content_rtl
+            st.session_state['mindmap_type']='svg'
+        elif 'html' in u_file.type:
+            html_content = u_file.getvalue().decode('utf-8')
+           # st.markdown(html_content, unsafe_allow_html=True)
+            st.session_state['mindmap']=html_content
+            st.session_state['mindmap_type']='html'
+        elif 'text' in u_file.type:
             text_content = u_file.getvalue().decode('utf-8')
             if "additional" in u_file.name.lower():
                 st.session_state["additional"] = text_content
-            if "short_summary" in u_file.name.lower():
+            if "short" in u_file.name.lower():
                 st.session_state["short_summary"] = text_content
-            if "long_summary" in u_file.name.lower():
+            if "long" in u_file.name.lower():
                 st.session_state["long_summary"] = text_content
             if "quiz" in u_file.name.lower():
                 st.session_state["quiz"] = text_content
             if "concepts" in u_file.name.lower():
                 st.session_state["concepts"] = text_content
-        elif 'svg' in u_file.type:
-            # Read the SVG file content
-            svg_content = u_file.read().decode("utf-8")
-            # Modify the SVG for RTL text direction
-            svg_content_rtl = set_svg_text_direction(svg_content)
-            st.session_state['mindmap']=svg_content_rtl
         elif 'mp3' in u_file.type and st.session_state.allow_tts_download and u_file.name == st.session_state.config.tts_file:
             st.session_state.tts_file = u_file
             st.session_state.tts_bytes = u_file.getvalue()
@@ -155,7 +162,9 @@ def show_quiz(cont):
             if (len(q_a[0]) == 0):
                 q_a = q_a[1:]
             question = q_a[0]
-            question_body = question.split(';')[1].strip()
+            question_body= question
+            if len(question.split(';'))> 1:
+                question_body = question.split(';')[1].strip()
             cont.markdown(f"***{valid + 1}: {question_body}***")
             choices = q_a[1:]
             choices_arr = []
@@ -307,8 +316,12 @@ def load_AI(cont,sb):
     if mindmap is not None:
         expd = cont.expander("MindMap", expanded=False, icon="🦉")
         expd.subheader("Mind Map")
-        expd.image(mindmap, caption='MindMap of the Lesson')
-
+        if st.session_state['mindmap_type']=='svg':
+            expd.image(mindmap, caption='MindMap of the Lesson')
+        elif st.session_state['mindmap_type']=='html':
+            with expd:
+                components.html(mindmap, height=750)
+            #st.markdown(mindmap, unsafe_allow_html=True)
     concepts = st.session_state['concepts']
     if concepts is not None:
         st.session_state["concepts_expd"] = sb.expander("Key Concepts", expanded=True, icon="🏹")
@@ -360,6 +373,8 @@ def init():
         st.session_state["concepts"] = None
     if 'mindmap' not in st.session_state:
         st.session_state["mindmap"] = None
+    if 'mindmap_type' not in st.session_state:
+            st.session_state["mindmap_type"] = None
     if 'quiz' not in st.session_state:
         st.session_state["quiz"] = None
     if 'additional' not in st.session_state:
@@ -398,7 +413,7 @@ def main():
     m_container,sb = st.columns([500, 210])
     with st.popover("Settings"):
         config_file = st.file_uploader("Upload a config file", type=['cfg'])
-        st.session_state.allow_tts_download = st.checkbox("Summary as MP3")
+      #  st.session_state.allow_tts_download = st.checkbox("Summary as MP3")
       #  if st.session_state.allow_tts_download:
        #     tts_mp3 = st.file_uploader("Upload a tts file", type=['mp3'])
 
