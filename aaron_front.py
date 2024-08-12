@@ -1,6 +1,5 @@
 import collections
 import io
-
 from st_click_detector import click_detector
 import streamlit.components.v1 as components
 import os
@@ -10,7 +9,7 @@ import tempfile
 
 
 from utils.aa_utils import find_txt, get_audio_file_content, get_binary_file_downloader_html, range2start_end, set_svg_text_direction, aaFrontConfig
-
+version = 0.6
 sections = ["Short_Summary", "MindMap", "Quiz", "Long_Summary", "Concepts", "Additional"]
 
 
@@ -413,6 +412,7 @@ def main():
     m_container,sb = st.columns([500, 210])
     with st.popover("Settings"):
         config_file = st.file_uploader("Upload a config file", type=['cfg'])
+        st.text(f"version {version}")
       #  st.session_state.allow_tts_download = st.checkbox("Summary as MP3")
       #  if st.session_state.allow_tts_download:
        #     tts_mp3 = st.file_uploader("Upload a tts file", type=['mp3'])
